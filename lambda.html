@@ -1,0 +1,43 @@
+<html>
+    <head>
+        <title>Lambda Calculus</title>
+        <script type="text/javascript" src="lambda.js"></script>
+    </head>
+    <body onload="refreshDefinitions();">
+        <!--[if IE]>
+        Note: This does <i>not</i> work in Internet Explorer. Please use a browser with at least proximal support for the most basic web standards.<hr/>
+        <![endif]-->
+
+        Definitions:<br/>
+        <div id="definitions" style="border: 1px solid">
+        </div>
+        <hr/>
+
+        Expression:<br/>
+        <input type="text" size="80" id="lambdaInput" onkeypress="handleInput(event, this);"/><br/>
+
+        <table>
+            <tr>
+                <td>Display intermediate steps:</td>
+                <td><input type="checkbox" id="showIntermediateSteps" checked/></td>
+            </tr>
+            <tr>
+                <td>Show box format output:</td>
+                <td><input type="checkbox" id="showBoxes" checked/></td>
+            </tr>
+        </table>
+
+        <input type="button" value="Start" onclick="handleInputPrime(document.getElementById('lambdaInput').value);"/>
+        <input type="button" value="Stop" onclick="forceStop();"/>
+        <hr/>
+
+        Result:<br/>
+        <div id="result" style="border: 1px solid; background-color: black; color: white">
+        </div>
+        <hr/>
+
+        Errors:<br/>
+        <div id="errors">
+        </div>
+    </body>
+</html>
