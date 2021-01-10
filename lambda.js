@@ -1,19 +1,53 @@
+/*
+ * Copyright (c) 2008, 2021 Gregor Richards
+ * 
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+ * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
 // base definitions
 var definitions = {
-    "^true":    "^ift.^iff.ift",
-    "^false":   "^ift.^iff.iff",
-    "^not":     "^b.b false true",
-    "^and":     "^b.^c.b c false",
-    "^or":      "^b.^c.b true c",
-    "^zero":    "^s.^z.z",
-    "^succ":    "^n.^s.^z.s (n s z)",
-    "^pred":    "^n.^s.^z.n (^m.^b.b (s (m true)) (m true)) (^b.z) false",
-    "^nonzero": "^x.x (or true) false",
-    "^plus":    "^m.^n.^s.^z.m s (n s z)",
-    "^minus":   "^m.^n.n pred m",
-    "^times":   "^m.^n.n (plus m) zero",
-    "^omega":   "(^x.x x) (^x.x x)",
-    "^Yc":      "^f.(^x.f (x x)) (^x.f (x x))"
+    "^id":      "^x.x",
+    "^if":      "^b.^t.^f.b t f",
+    "^true":    "^x.^y.x",
+    "^false":   "^x.^y.y",
+    "^and":     "^p.^q.if p q false",
+    "^or":      "^p.^q.if p true q",
+    "^not":     "^p.if p false true",
+    "^cons":    "^h.^t.^s.s h t",
+    "^head":    "^l.l true",
+    "^tail":    "^l.l false",
+    "^isnull":  "^l.l ^h.^t.false",
+    "^nil":     "^s.true",
+    "^zero":    "^f.^x.x",
+    "^one":     "^f.^x.f x",
+    "^two":     "^f.^x.f f x",
+    "^three":   "^f.^x.f f f x",
+    "^four":    "^f.^x.f f f f x",
+    "^five":    "^f.^x.f f f f f x",
+    "^six":     "^f.^x.f f f f f f x",
+    "^seven":   "^f.^x.f f f f f f f x",
+    "^eight":   "^f.^x.f f f f f f f f x",
+    "^nine":    "^f.^x.f f f f f f f f f x",
+    "^ten":     "^f.^x.f f f f f f f f f f x",
+    "^succ":    "^n.^f.^x.n f (f x)",
+    "^add":     "^a.^b.(^m.^n.^f.^x.m f (n f x)) a b",
+    "^pred":    "^n.tail (n (^p.cons (succ (head p)) (head p)) (cons zero zero))",
+    "^sub":     "^m.^n.n pred m",
+    "^mul":     "^m.^n.^f.m (n f)",
+    "^exp":     "^m.^n.n m",
+    "^Y":       "^f.(^x.f (x x)) (^x.f (x x))",
+    "^Y_":      "^f.(^x.f (^y.x x y)) (^x.f (^y.x x y))",
+    "^len":     "^l.Y_ (^f.^l.(isnull l) zero (succ (f (tail l))))"
 };
 
 // move definitions into the display
@@ -456,90 +490,119 @@ function renameVariables(exp, curnames, primes) {
 /******************************************************************************
  * REDUCTION
  *****************************************************************************/
-function normalOrderReduce(exp, primes) {
+function applicativeOrderReduce(exp, primes) {
+    var res;
+
     if (exp.isApplication) {
-        // this is the only situation in which we can reduce with normal order
-        if (exp.func.isLambda) {
-            // perform the actual application
-            var res = lambdaReplace(exp.func.exp, exp.func.lvar, exp.arg, primes);
-            return res;
-
-        } else if (exp.func.isWord) {
-            // try to expand definitions
-            var res = expandDefinition(exp.func.tok);
-            if (res === false) {
-                return false;
-            } else {
-                primes = renameVariables(res, new Object, primes);
-                exp.func = res;
-                return [exp, primes];
-            }
-
-        } else {
-            // try to reduce the function
-            var res = normalOrderReduce(exp.func, primes);
-            if (res === false) {
-                return false;
-            } else {
-                exp.func = res[0];
-                return [exp, res[1]];
-            }
-
+        // Try to reduce the left
+        res = applicativeOrderReduce(exp.func, primes);
+        if (res) {
+            exp.func = res[0];
+            return [exp, res[1]];
         }
 
-    } else {
-        // can't reduce it
-        return false;
-
-    }
-}
-
-// slightly eager reduction
-function eagerishReduce(exp, primes) {
-    if (exp.isApplication) {
-        // use a normal order here
-        var res = normalOrderReduce(exp, primes);
-        if (res === false) {
-            // just reduce the right
-            res = eagerishReduce(exp.arg, primes);
-            if (res === false) {
-                return false;
-
-            } else {
-                exp.arg = res[0];
-                return [exp, res[1]];
-
-            }
-        } else {
-            return res;
+        // Try to reduce the right
+        res = applicativeOrderReduce(exp.arg, primes);
+        if (res) {
+            exp.arg = res[0];
+            return [exp, res[1]];
         }
+
+        // Try to reduce this
+        if (exp.func.isLambda)
+            return lambdaReplace(exp.func.exp, exp.func.lvar, exp.arg, primes);
 
     } else if (exp.isLambda) {
-        // we can reduce the argument (maybe)
-        var res = eagerishReduce(exp.exp, primes);
-        if (res === false) {
-            // couldn't reduce! :(
-            return false;
-
-        } else {
-            // make sure we've actually /reduced/ it
-            var resdepth = res[0].depth();
-            var expdepth = exp.depth();
-            if (resdepth >= expdepth) {
-                return false;
-            } else {
-                exp.exp = res[0];
-                return [exp, res[1]];
-            }
+        // Try to reduce the expression
+        res = applicativeOrderReduce(exp.exp, primes);
+        if (res) {
+            exp.exp = res[0];
+            return [exp, res[1]];
         }
 
-    } else {
-        // can't reduce it
-        return false;
+    } else if (exp.isWord) {
+        // Replace it
+        res = expandDefinition(exp.tok);
+        if (res) {
+            primes = renameVariables(res, {}, primes);
+            return [res, primes];
+        }
 
     }
+
+    return false;
 }
 
+function aoeReduce(exp, primes) {
+    var res;
+
+    if (exp.isApplication) {
+        // Try to reduce the left
+        res = aoeReduce(exp.func, primes);
+        if (res) {
+            exp.func = res[0];
+            return [exp, res[1]];
+        }
+
+        // Try to reduce the right
+        res = aoeReduce(exp.arg, primes);
+        if (res) {
+            exp.arg = res[0];
+            return [exp, res[1]];
+        }
+
+        // Try to reduce this
+        if (exp.func.isLambda)
+            return lambdaReplace(exp.func.exp, exp.func.lvar, exp.arg, primes);
+
+    } else if (exp.isWord) {
+        // Replace it
+        res = expandDefinition(exp.tok);
+        if (res) {
+            primes = renameVariables(res, {}, primes);
+            return [res, primes];
+        }
+
+    }
+
+    return false;
+}
+
+function normalOrderReduce(exp, primes) {
+    var res;
+
+    if (exp.isApplication) {
+        // Try to reduce the left
+        res = normalOrderReduce(exp.func, primes);
+        if (res) {
+            exp.func = res[0];
+            return [exp, res[1]];
+        }
+
+        // Try to reduce this
+        if (exp.func.isLambda)
+            return lambdaReplace(exp.func.exp, exp.func.lvar, exp.arg, primes);
+
+    } else if (exp.isLambda) {
+        // Try to reduce the expression
+        res = normalOrderReduce(exp.exp, primes);
+        if (res) {
+            exp.exp = res[0];
+            return [exp, res[1]];
+        }
+
+    } else if (exp.isWord) {
+        // Replace it
+        res = expandDefinition(exp.tok);
+        if (res) {
+            primes = renameVariables(res, {}, primes);
+            return [res, primes];
+        }
+
+    }
+
+    return false;
+}
 
 // replace a name with a value in an expression
 function lambdaReplace(exp, name, val, primes) {
@@ -580,6 +643,9 @@ var showIntermediateSteps = true;
 // should we show boxes, or just lambdas?
 var showBoxes = true;
 
+// which evaluation strategy?
+var evalStrategy = null;
+
 function handleInput(evt, inp) {
     var keyCode = null;
 
@@ -615,6 +681,20 @@ function handleInputPrime(str)
         showBoxes = true;
     } else {
         showBoxes = false;
+    }
+
+    var as = document.getElementById("evalStrategy").value;
+    switch (as) {
+        case "nor":
+            evalStrategy = normalOrderReduce;
+            break;
+
+        case "aoe":
+            evalStrategy = aoeReduce;
+            break;
+
+        default:
+            evalStrategy = applicativeOrderReduce;
     }
 
     // lex ...
@@ -669,8 +749,7 @@ function performLambdaStep(exp, primes) {
     }
 
     // reduce ...
-    //var res = normalOrderReduce(exp);
-    var res = eagerishReduce(exp, primes);
+    var res = evalStrategy(exp, primes);
     if (res !== false) {
         setTimeout(function(){performLambdaStep(res[0], res[1]);},
                    showIntermediateSteps ? 0 : 250);

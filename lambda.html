@@ -4,10 +4,6 @@
         <script type="text/javascript" src="lambda.js"></script>
     </head>
     <body onload="refreshDefinitions();">
-        <!--[if IE]>
-        Note: This does <i>not</i> work in Internet Explorer. Please use a browser with at least proximal support for the most basic web standards.<hr/>
-        <![endif]-->
-
         Definitions:<br/>
         <div id="definitions" style="border: 1px solid">
         </div>
@@ -24,6 +20,14 @@
             <tr>
                 <td>Show box format output:</td>
                 <td><input type="checkbox" id="showBoxes" checked/></td>
+            </tr>
+            <tr>
+                <td>Evaluation strategy:</td>
+                <td><select id="evalStrategy">
+                    <option value="aor">AOR</option>
+                    <option value="aoe">AOE</option>
+                    <option value="nor">NOR</option>
+                </select></td>
             </tr>
         </table>
 
