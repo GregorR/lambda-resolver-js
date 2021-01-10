@@ -30,24 +30,26 @@ var definitions = {
     "^nil":     "^s.true",
     "^zero":    "^f.^x.x",
     "^one":     "^f.^x.f x",
-    "^two":     "^f.^x.f f x",
-    "^three":   "^f.^x.f f f x",
-    "^four":    "^f.^x.f f f f x",
-    "^five":    "^f.^x.f f f f f x",
-    "^six":     "^f.^x.f f f f f f x",
-    "^seven":   "^f.^x.f f f f f f f x",
-    "^eight":   "^f.^x.f f f f f f f f x",
-    "^nine":    "^f.^x.f f f f f f f f f x",
-    "^ten":     "^f.^x.f f f f f f f f f f x",
+    "^two":     "^f.^x.f (f x)",
+    "^three":   "^f.^x.f (f (f x))",
+    "^four":    "^f.^x.f (f (f (f x)))",
+    "^five":    "^f.^x.f (f (f (f (f x))))",
+    "^six":     "^f.^x.f (f (f (f (f (f x)))))",
+    "^seven":   "^f.^x.f (f (f (f (f (f (f x))))))",
+    "^eight":   "^f.^x.f (f (f (f (f (f (f (f x)))))))",
+    "^nine":    "^f.^x.f (f (f (f (f (f (f (f (f x))))))))",
+    "^ten":     "^f.^x.f (f (f (f (f (f (f (f (f (f x)))))))))",
     "^succ":    "^n.^f.^x.n f (f x)",
-    "^add":     "^a.^b.(^m.^n.^f.^x.m f (n f x)) a b",
+    "^add":     "^m.^n.^f.^x.m f (n f x)",
     "^pred":    "^n.tail (n (^p.cons (succ (head p)) (head p)) (cons zero zero))",
     "^sub":     "^m.^n.n pred m",
     "^mul":     "^m.^n.^f.m (n f)",
     "^exp":     "^m.^n.n m",
     "^Y":       "^f.(^x.f (x x)) (^x.f (x x))",
     "^Y_":      "^f.(^x.f (^y.x x y)) (^x.f (^y.x x y))",
-    "^len":     "^l.Y_ (^f.^l.(isnull l) zero (succ (f (tail l))))"
+    "^lenF":    "^f.^l.(isnull l) zero (succ (f (tail l)))",
+    "^len":     "Y lenF",
+    "^len_":    "Y_ lenF"
 };
 
 // move definitions into the display
@@ -371,9 +373,7 @@ function simpleUnparse(exp) {
 }
 
 var unparseColors = [
-    "red", "lightgreen",
-    "orange", "cyan",
-    "yellow", "pink"
+    "#47a", "#6ce", "#283", "#cb4", "#e67", "#a37", "#bbb"
 ];
 function colorUnparse(exp, depth) {
     if (depth === undefined) depth = 0;
@@ -418,7 +418,7 @@ function fancyUnparse(exp, depth) {
     } else if (exp.isLambda) {
         return "<table border='1' style='background-color: " +
                unparseColors[depth] +
-               "; color: black; margin: 0.5em'><tr><td>&lambda;" +
+               "; color: black; margin: 0.5em; font-weight: bold;'><tr><td>&lambda;" +
                exp.lvar +
                ".</td><td>" +
                fancyUnparse(exp.exp, depth + 1) +
@@ -427,7 +427,7 @@ function fancyUnparse(exp, depth) {
     } else if (exp.isApplication) {
         return "<table border='1' style='background-color: " +
                unparseColors[depth] +
-               "; color: black; margin: 0.5em'><tr><td>" +
+               "; color: black; margin: 0.5em; font-weight: bold;'><tr><td>" +
                fancyUnparse(exp.func, depth + 1) +
                "</td><td>" +
                fancyUnparse(exp.arg, depth + 1) +
@@ -572,16 +572,23 @@ function normalOrderReduce(exp, primes) {
     var res;
 
     if (exp.isApplication) {
-        // Try to reduce the left
+        // Try to reduce this
+        if (exp.func.isLambda)
+            return lambdaReplace(exp.func.exp, exp.func.lvar, exp.arg, primes);
+
+        // Otherwise, try to reduce the left
         res = normalOrderReduce(exp.func, primes);
         if (res) {
             exp.func = res[0];
             return [exp, res[1]];
         }
 
-        // Try to reduce this
-        if (exp.func.isLambda)
-            return lambdaReplace(exp.func.exp, exp.func.lvar, exp.arg, primes);
+        // Otherwise, try to reduce the right
+        res = normalOrderReduce(exp.arg, primes);
+        if (res) {
+            exp.arg = res[0];
+            return [exp, res[1]];
+        }
 
     } else if (exp.isLambda) {
         // Try to reduce the expression
@@ -718,7 +725,14 @@ function handleInputPrime(str)
         var primes = renameVariables(parsed, new Object, 1);
 
         // start with nothing
-        document.getElementById("result").innerHTML = "";
+        var result = document.getElementById("result");
+        result.innerHTML = "";
+
+        // maybe clear out
+        if (new URL(document.location).search === "?clear") {
+            document.body.innerHTML = "";
+            document.body.appendChild(result);
+        }
 
         // then perform steps
         setTimeout(function(){performLambdaStep(parsed, primes);}, 0);
